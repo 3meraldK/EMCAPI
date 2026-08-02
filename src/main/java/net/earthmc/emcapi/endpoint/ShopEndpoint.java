@@ -32,7 +32,8 @@ import java.util.concurrent.ExecutionException;
 
 public class ShopEndpoint extends PostEndpoint<ShopEndpoint.ShopData> {
     private final QuickShopIntegration integration;
-    private static final int COOLDOWN_SECONDS = 3600;
+    private static final int LOAD_COOLDOWN_SECONDS = 3600;
+    private static final int CACHE_COOLDOWN_SECONDS = 60;
     private final LoadingCache<UUID, ShopData> shopCache = CacheBuilder.newBuilder()
         .expireAfterWrite(Duration.ofHours(1))
         .build(new CacheLoader<>() {
@@ -66,20 +67,24 @@ public class ShopEndpoint extends PostEndpoint<ShopEndpoint.ShopData> {
             throw HttpExceptions.MISSING_API_KEY;
         }
         OptOutSettings settings = plugin.getOptOut().getPlayerSettings(player);
-        if (!player.equals(keyOwner) && (settings == null || settings.quickShops() && !plugin.getAuth().authorize(player, AuthSettings.Type.SHOP_QUERY, keyOwner))) {
+        boolean publicData = settings != null && !settings.quickShops();
+        boolean authorized = plugin.getAuth().authorize(player, AuthSettings.Type.SHOP_QUERY, keyOwner);
+        if (!player.equals(keyOwner) && !publicData && !authorized) {
             throw HttpExceptions.FORBIDDEN;
         }
-        CooldownUtil.checkAndAddCooldownOrThrow("shop", keyOwner.toString(), COOLDOWN_SECONDS);
+        // Side effect: Loading shop data would still throw 429 if the cache cooldown is violated. Not much of an issue considering it's only 1 minute
+        CooldownUtil.checkAndAddCooldownOrThrow("shop_cache", keyOwner.toString(), CACHE_COOLDOWN_SECONDS);
 
         ShopData data = shopCache.getIfPresent(player);
         if (data != null) {
             return data;
         }
+        CooldownUtil.checkAndAddCooldownOrThrow("shop_load", keyOwner.toString(), LOAD_COOLDOWN_SECONDS);
         try {
             return shopCache.get(player);
         } catch (ExecutionException e) {
             plugin.getSLF4JLogger().warn("ExecutionException while fetching shop cache for {}", player, e);
-            CooldownUtil.remove("shop", keyOwner.toString());
+            CooldownUtil.remove("shop_load", keyOwner.toString());
             throw new InternalServerErrorResponse("Unexpected exception while loading " + player + "'s shops");
         }
     }
