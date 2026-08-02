@@ -22,12 +22,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 public class ShopEndpoint extends PostEndpoint<ShopEndpoint.ShopData> {
@@ -97,40 +93,14 @@ public class ShopEndpoint extends PostEndpoint<ShopEndpoint.ShopData> {
     public record ShopData(JsonElement json) {} // Wrapper to clarify what this endpoint returns
 
     private JsonElement getShopsJson(List<Shop> object) {
-        final Map<String, JsonElement> shops = new ConcurrentHashMap<>();
-        int counter = 0;
         if (object.isEmpty()) {
             return null;
         }
 
-        final List<CompletableFuture<Void>> shopFutures = new ArrayList<>();
-
-        for (Shop shop : object) {
-            final CompletableFuture<Void> shopFuture = new CompletableFuture<>();
-            shopFutures.add(shopFuture);
-
-            final int count = counter++;
-
-            plugin.getServer().getRegionScheduler().execute(plugin, shop.getLocation(), () -> {
-                shop.getLocation().getWorld().getChunkAtAsync(shop.getLocation()).thenAccept(chunk -> {
-                    try {
-                        shops.put(String.valueOf(count), EndpointUtils.getShopObject(shop));
-                        shopFuture.complete(null);
-                    } catch (Throwable throwable) {
-                        shopFuture.completeExceptionally(throwable);
-                    }
-                });
-            });
-        }
-
-        CompletableFuture.allOf(shopFutures.toArray(new CompletableFuture[]{})).join();
-        if (shops.isEmpty()) {
-            return null;
-        }
-
         final JsonObject shopsObject = new JsonObject();
-        for (final Map.Entry<String, JsonElement> entry : shops.entrySet()) {
-            shopsObject.add(entry.getKey(), entry.getValue());
+        int counter = 0;
+        for (final Shop shop : object) {
+            shopsObject.add(String.valueOf(counter++), EndpointUtils.getShopObject(shop, true));
         }
 
         return shopsObject;

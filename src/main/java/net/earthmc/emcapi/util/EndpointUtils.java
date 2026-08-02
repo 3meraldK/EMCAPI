@@ -1,6 +1,7 @@
 package net.earthmc.emcapi.util;
 
 import com.ghostchu.quickshop.api.shop.Shop;
+import com.ghostchu.quickshop.menu.browse.MarketUtils;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.palmergames.bukkit.towny.TownySettings;
@@ -15,6 +16,7 @@ import net.earthmc.lynchpin.api.towny.pacts.Pact;
 import net.earthmc.lynchpin.api.towny.warps.Warp;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -173,14 +175,29 @@ public class EndpointUtils {
     }
 
     public static JsonObject getShopObject(Shop shop) {
+        // There's a chance the cache might not be updated by the time the events that call this method are called, so continue directly getting the stock.
+        // For the shop endpoint, using the cache is safe and means we won't have to schedule onto the region thread & load every chunk for every shop
+        return getShopObject(shop, false);
+    }
+
+    public static JsonObject getShopObject(Shop shop, boolean useCache) {
         JsonObject jsonObject = new JsonObject();
         jsonObject.addProperty("id", shop.getShopId());
         jsonObject.addProperty("owner", String.valueOf(shop.getOwner().getUniqueId()));
-        jsonObject.addProperty("item", shop.getItem().getType().name());
+        final ItemStack item = shop.getItem();
+        jsonObject.addProperty("item", item.getType().name());
         jsonObject.addProperty("price", shop.getPrice());
-        jsonObject.addProperty("amount", shop.getItem().getAmount());
+        jsonObject.addProperty("amount", item.getAmount());
         jsonObject.addProperty("type", shop.isSelling() ? "selling" : "buying");
-        jsonObject.addProperty("stock", shop.isSelling() ? shop.getRemainingStock() : shop.getRemainingSpace());
+
+        final int stock;
+        if (useCache) {
+            stock = shop.isSelling() ? MarketUtils.getStockFromCache(shop) : MarketUtils.getSpaceFromCache(shop);
+        } else {
+            stock = shop.isSelling() ? shop.getRemainingStock() : shop.getRemainingSpace();
+        }
+
+        jsonObject.addProperty("stock", stock);
 
         Location location = shop.getLocation();
         JsonObject locationObject = new JsonObject();
