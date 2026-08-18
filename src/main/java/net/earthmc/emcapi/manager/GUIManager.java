@@ -12,6 +12,7 @@ import dev.warriorrr.inventories.gui.slot.anchor.HorizontalAnchor;
 import dev.warriorrr.inventories.gui.slot.anchor.SlotAnchor;
 import dev.warriorrr.inventories.gui.slot.anchor.VerticalAnchor;
 import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.ResolvableProfile;
 import io.papermc.paper.datacomponent.item.TooltipDisplay;
 import kotlin.Pair;
 import net.earthmc.emcapi.EMCAPI;
@@ -49,6 +50,7 @@ public class GUIManager implements Listener {
         this.auth = plugin.getAuth();
     }
 
+    @SuppressWarnings("UnstableApiUsage")
     public MenuInventory createRoot(Player player) {
         MenuInventory.Builder menu = MenuInventory.builder()
             .title(Component.text("API Help Menu", NamedTextColor.AQUA, TextDecoration.BOLD))
@@ -63,8 +65,11 @@ public class GUIManager implements Listener {
             .build();
 
         MenuItem authorise = MenuItem.builder(Material.PLAYER_HEAD)
-            .skullOwner(player.getUniqueId())
-            .name(Component.text("Manage your player authorisation settings", NamedTextColor.DARK_AQUA, TextDecoration.BOLD))
+            .mutateItem(item -> {
+                item.setData(DataComponentTypes.PROFILE, ResolvableProfile.resolvableProfile(player.getPlayerProfile()));
+                // need to use the custom name component for non-dynamic profiles
+                item.setData(DataComponentTypes.CUSTOM_NAME, Component.text("Manage your player authorisation settings", NamedTextColor.DARK_AQUA, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
+            })
             .lore(Component.text("Click to manage which players have what rights to your information", NamedTextColor.GRAY))
             .action(ClickAction.openSilent(() -> createAuthMenu(player)))
             .slot(slot(1, 4))
