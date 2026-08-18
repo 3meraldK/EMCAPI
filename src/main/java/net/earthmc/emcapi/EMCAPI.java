@@ -4,6 +4,8 @@ import com.zaxxer.hikari.HikariConfig;
 import dev.warriorrr.inventories.Inventories;
 import io.javalin.Javalin;
 import io.javalin.http.TooManyRequestsResponse;
+import io.javalin.openapi.plugin.OpenApiPlugin;
+import io.javalin.openapi.plugin.swagger.SwaggerPlugin;
 import io.javalin.util.JavalinLogger;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.earthmc.emcapi.database.APIDatabase;
@@ -96,6 +98,26 @@ public final class EMCAPI extends JavaPlugin {
         javalin = Javalin.start(config -> {
             config.jetty.modifyServer(this::disableServerVersionHeader);
 
+            config.registerPlugin(new OpenApiPlugin(openApi -> {
+                openApi.withDocumentationPath("/docs");
+                openApi.resourceClassLoader = this.getClassLoader();
+                openApi.withDefinitionConfiguration((string, builder) -> {
+                    builder.info(info -> {
+                        info.title("EarthMC API");
+                        info.description("The official API for EarthMC");
+                        info.contact("EarthMC", "https://earthmc.net/");
+                        info.version(getApiVersion());
+                    });
+                });
+            }));
+            config.registerPlugin(new SwaggerPlugin(swagger -> {
+                swagger.documentationPath = "/docs";
+                swagger.uiPath = "/ui";
+                swagger.title = "EarthMC API Docs";
+                swagger.version = BuildConstants.SWAGGER_VERSION; // Needed to properly access webjar
+                swagger.resourceClassLoader = this.getClassLoader();
+            }));
+
             config.routes.exception(TooManyRequestsResponse.class, (e, ctx) -> {
                 final String retryAfter = e.getDetails().get("retry");
                 if (retryAfter != null) {
@@ -164,8 +186,11 @@ public final class EMCAPI extends JavaPlugin {
     }
 
     public String getURLPath() {
-        String version = getConfig().getString("networking.api_version", "3");
-        return "v" + version;
+        return "v" + getApiVersion();
+    }
+
+    public String getApiVersion() {
+        return getConfig().getString("networking.api_version");
     }
 
     public APIDatabase getDatabase() {
