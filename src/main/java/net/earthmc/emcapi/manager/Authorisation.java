@@ -27,7 +27,12 @@ public class Authorisation {
      * @return Whether the target is authorised for this action
      */
     public boolean authorize(UUID owner, AuthSettings.Type type, UUID target) {
-        return authMap.containsKey(owner) && authMap.get(owner).authorize(type, target);
+        final AuthSettings settings = authMap.get(owner);
+        if (settings == null) {
+            return false;
+        }
+
+        return settings.authorize(type, target);
     }
 
     public AuthSettings getAuthSettings(UUID owner) {
