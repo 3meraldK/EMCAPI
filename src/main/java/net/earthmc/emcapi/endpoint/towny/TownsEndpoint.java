@@ -151,11 +151,11 @@ public class TownsEndpoint extends PostEndpoint<Town> {
 
         JsonArray townBlocksArray = new JsonArray();
         for (TownBlock townBlock : town.getTownBlocks()) {
-            JsonArray townBlockArray = new JsonArray();
-            townBlockArray.add(townBlock.getX());
-            townBlockArray.add(townBlock.getZ());
-
-            townBlocksArray.add(townBlockArray);
+            JsonObject townBlockObject = new JsonObject();
+            townBlockObject.addProperty("x", townBlock.getX());
+            townBlockObject.addProperty("z", townBlock.getZ());
+            townBlockObject.addProperty("isOutpost", townBlock.isOutpost());
+            townBlocksArray.add(townBlockObject);
         }
         coordinatesObject.add("townBlocks", townBlocksArray);
 
