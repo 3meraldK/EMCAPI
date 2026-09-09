@@ -150,14 +150,20 @@ public class TownsEndpoint extends PostEndpoint<Town> {
         coordinatesObject.add("homeBlock", homeBlockArray);
 
         JsonArray townBlocksArray = new JsonArray();
+        JsonArray moonOutpostsArray = new JsonArray();
         for (TownBlock townBlock : town.getTownBlocks()) {
-            JsonObject townBlockObject = new JsonObject();
-            townBlockObject.addProperty("x", townBlock.getX());
-            townBlockObject.addProperty("z", townBlock.getZ());
-            townBlockObject.addProperty("isOutpost", townBlock.isOutpost());
-            townBlocksArray.add(townBlockObject);
+            JsonArray townBlockArray = new JsonArray();
+            townBlockArray.add(townBlock.getX());
+            townBlockArray.add(townBlock.getZ());
+
+            if (townBlock.getWorld().getName().equals("earthmc_moon")) {
+                moonOutpostsArray.add(townBlockArray);
+            } else {
+                townBlocksArray.add(townBlockArray);
+            }
         }
         coordinatesObject.add("townBlocks", townBlocksArray);
+        coordinatesObject.add("moonOutposts", moonOutpostsArray);
 
         townObject.add("coordinates", coordinatesObject);
 
